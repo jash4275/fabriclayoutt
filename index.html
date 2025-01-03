@@ -1,0 +1,143 @@
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fabric.js Polygon with Draggable and Rotatable Boxes</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+  <style>
+    #fabric-holder {
+      border: 1px solid #ccc;
+      margin: 20px;
+    }
+    #add-box-btn {
+      margin: 10px;
+      padding: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <button id="add-box-btn">Add Box</button>
+  <canvas id="fabric-holder" width="500" height="400"></canvas>
+
+  <script>
+    // Create a Fabric.js canvas
+    const canvas = new fabric.Canvas('fabric-holder');
+
+    // Define the new points for the polygon (latitude and longitude pairs)
+    const points = [
+      19.206210184668198, 72.87420292877489,
+      19.205979688860328, 72.87419219993883,
+      19.20597462301477, 72.87458112024599,
+      19.20596195840019, 72.87497272276217
+    ];
+
+    // Find the min and max values for latitude and longitude
+    let minLat = Math.min(...points.filter((_, index) => index % 2 === 0));
+    let maxLat = Math.max(...points.filter((_, index) => index % 2 === 0));
+    let minLng = Math.min(...points.filter((_, index) => index % 2 !== 0));
+    let maxLng = Math.max(...points.filter((_, index) => index % 2 !== 0));
+
+    // Add some padding to prevent boxes from being at the edges
+    const padding = 0;
+
+    // Normalize the points based on the canvas size with padding
+    const normalizedPoints = [];
+    for (let i = 0; i < points.length; i += 2) {
+      const lat = points[i];
+      const lng = points[i + 1];
+
+      // Normalize and invert latitude (y-coordinate)
+      const y = canvas.height - (((lat - minLat) / (maxLat - minLat)) * (canvas.height - 2 * padding) + padding);
+      // Normalize longitude (x-coordinate)
+      const x = ((lng - minLng) / (maxLng - minLng)) * (canvas.width - 2 * padding) + padding;
+
+      normalizedPoints.push({ x, y });
+    }
+
+    // Draw the polygon using Fabric.js
+    const polygon = new fabric.Polygon(normalizedPoints, {
+      fill: 'rgba(0, 0, 255, 0.2)', // Light blue fill
+      stroke: 'blue',               // Blue outline
+      strokeWidth: 2
+    });
+    canvas.add(polygon);
+
+    // Function to check if a point is inside the polygon
+    function isPointInPolygon(x, y, polyPoints) {
+      let inside = false;
+      for (let i = 0, j = polyPoints.length - 1; i < polyPoints.length; j = i++) {
+        const xi = polyPoints[i].x, yi = polyPoints[i].y;
+        const xj = polyPoints[j].x, yj = polyPoints[j].y;
+
+        const intersect = ((yi > y) !== (yj > y)) &&
+                          (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    // Function to check if all corners of a rectangular box are inside the polygon
+    function isBoxCompletelyInside(x, y, width, height, polyPoints) {
+      // Check all four corners
+      return isPointInPolygon(x, y, polyPoints) && // Top-left
+             isPointInPolygon(x + width, y, polyPoints) && // Top-right
+             isPointInPolygon(x, y + height, polyPoints) && // Bottom-left
+             isPointInPolygon(x + width, y + height, polyPoints); // Bottom-right
+    }
+
+    // Box properties
+    const boxWidth = 20;
+    const boxHeight = 40;
+    const spacing = 10; // Space between boxes
+
+    // Place boxes in a grid pattern
+    for (let x = 0; x < canvas.width; x += boxWidth + spacing) {
+      for (let y = 0; y < canvas.height; y += boxHeight + spacing) {
+        // Check if the entire box is inside the polygon
+        if (isBoxCompletelyInside(x, y, boxWidth, boxHeight, normalizedPoints)) {
+          const box = new fabric.Rect({
+            left: x,
+            top: y,
+            width: boxWidth,
+            height: boxHeight,
+            fill: 'blue',
+            stroke: 'black',
+            strokeWidth: 1,
+            opacity: 0.5,
+            hasControls: true,
+            hasBorders: true
+          });
+
+          canvas.add(box);
+        }
+      }
+    }
+
+    // Function to add a new draggable and rotatable box
+    function addBox() {
+      const x = Math.random() * (canvas.width - boxWidth);
+      const y = Math.random() * (canvas.height - boxHeight);
+      const box = new fabric.Rect({
+        left: x,
+        top: y,
+        width: boxWidth,
+        height: boxHeight,
+        fill: 'red',
+        stroke: 'black',
+        strokeWidth: 1,
+        opacity: 0.5,
+        hasControls: true,
+        hasBorders: true
+      });
+
+      canvas.add(box);
+    }
+
+    // Add an event listener to the button to add a box
+    document.getElementById('add-box-btn').addEventListener('click', addBox);
+  </script>
+</body>
+</html>
